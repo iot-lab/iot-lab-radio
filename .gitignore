@@ -1,0 +1,38 @@
+*~
+*.pyc
+dist
+build
+MANIFEST
+iotlabradio.egg-info
+.tox
+
+# radio logger
+logs
+
+# riot firmware
+bin
+
+*.egg
+*.swp
+.coverage
+coverage.xml
+cover/
+htmlcov/
+
+.eggs/
+.python-version
+test_auth_file
+*log
+
+*png
+
+*.tar.gz
+
+# pytest cache directory
+.cache/
+.pytest_cache/
+test-report.xml
+
+# IDE
+.idea/
+.vscode/
