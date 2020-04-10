@@ -1,0 +1,4 @@
+[submodule "iotlabradio/riot/RIOT"]
+	path = iotlabradio/riot/RIOT
+	url = https://github.com/iot-lab/RIOT.git
+	branch = mooc-iot
