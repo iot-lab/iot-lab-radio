@@ -39,7 +39,7 @@ Radio characterization firmware
 -------------------------------
 
 It is based on `RIOT OS <https://riot-os.org/>`_ and used the `GNRC network stack <https://riot-os.org/api/group__net__gnrc.html>`_ to send 802.15.4 packets.
-You can find the source code in the :file:`iotlabradio/riot/radio-characterization/main.c`.
+You can find the source code `here <https://github.com/iot-lab/iot-lab-radio/blob/master/iotlabradio/riot/radio-characterization/main.c>`_.
 
 When a node sends packets the firmware builds each packet with a fixed header of 16 bytes as follows:
 
@@ -125,18 +125,18 @@ For example when one node send packets we use this log format:
 ::
 
     {"nb_error": 0, "node_id": "126", "power": -17, "channel": 11,  "nb_pkt": 100,
-     "send": [{"pkt_num": 0, "pkt_send": 0}, {"pkt_num": 1, "pkt_send": 0}, ...]}
+     "send": [{"pkt_num": 0, "pkt_res": 1}, {"pkt_num": 1, "pkt_res": 1}, ...]}
 
 - **nb_error**: number of send packets failure
 - **node_id**: sender node id
 - **power**: transmission power used to send packets
 - **channel**: channel used to send packets
 - **nb_pkt**: number of packets sent
-- **send**: list of packets sent
+- **send**:
     - **pkt_num**: packet number
     - **pkt_res**: sending result (1=Success|-1=Failure)
 
-For each nodes in the same radio neighborhood which received the packets we use this log format:
+For one node which received the packets we use this log format:
 
 ::
 
@@ -153,13 +153,15 @@ For each nodes in the same radio neighborhood which received the packets we use 
 - **power**: transmission power used to send packets (*)
 - **channel**: channel used to send packets (*)
 - **nb_pkt**: number of packets received
-- **send**: list of packets received
+- **send**:
     - **pkt_num**: packet number (*) or error number (**)
     - **rssi**: Received Signal Strength Indication (RSSI)
     - **lqi**: Link quality indicator (LQI)
 
 (*) extract from packet data received
+
 (**) Code error:
+
 - CRC error = 65345
 - packet payload size != packet size = 65346
 - sender node id change = 65347
