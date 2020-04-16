@@ -25,8 +25,8 @@
 // 2 bytes for signed values
 #define POWER_NONE 0xff01
 #define PKT_NUM_OFFSET_ERROR 0xff00u
-#define PKT_SEND_OK 0
-#define PKT_SEND_ERROR 1
+#define PKT_SEND_OK 1
+#define PKT_SEND_ERROR -1
 #ifndef PKT_MAX_RECV
 #define PKT_MAX_RECV 1024
 #endif
@@ -131,7 +131,7 @@ static void send_logger_show(int nb_pkt, int nb_error, char* node_id,
     for (i=0; i<nb_pkt; i++) {
         if (i > 0)
             printf(",");
-        printf("{\"pkt_num\":%i,\"pkt_send\":%i}", i, send_logger[i]);
+        printf("{\"pkt_num\":%i,\"pkt_res\":%i}", i, send_logger[i]);
     }
     printf("]}\n");
 }
