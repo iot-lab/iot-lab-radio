@@ -13,10 +13,7 @@ software licence.
 Radio characterization 
 ----------------------
 
-All the nodes of an experiment are in receive mode (RX) at the start. Then each node, in turn, will send broadcast 802.15.4
-raw packets with a time delay. Each node receiving the packets will record the good reception information with
-radio Received Signal Strength Indication (RSSI) and Link Quality indicator(LQI) values. This packet sending step will be performed
-for a given list of radio channels and transmission power.
+All the nodes of an experiment are in receive mode (RX) at the start. Then each node, in turn, will pass in transmitter mode (TX) and send broadcast 802.15.4 raw packets with a time delay. Each node receiving the packets will record the good reception information with radio Received Signal Strength Indication (RSSI) and Link Quality indicator(LQI) values. This packet sending step will be performed for a given list of radio channels and transmission power.
 
 We can summarize as follows:
 
@@ -32,7 +29,7 @@ We can summarize as follows:
 
 To perform the different step on the nodes (send packets, collect, clear) we use the serial port on which we send commands. Thanks to the
 serial aggregator tool which allows us to aggregate all serial ports of nodes very easily. We also manage error detection when receiving 
-packets (eg. bad crc & magic number, ...)
+packets (eg. CRC & Magic Number, ...)
 
 
 Radio characterization firmware
@@ -68,8 +65,8 @@ This firmware is originally based on the work of Cedric Adjih:
 - `Paper <https://www.researchgate.net/publication/304285486_Lessons_Learned_from_Large-scale_Dense_IEEE802154_Connectivity_Traces>`_ published at IEEE CASE 2015 conference
 
 
-Launch a Setup
---------------
+Launch a characterization
+-------------------------
 
 The first step is to launch an experiment on IoT-LAB testbed and flash the firmware on nodes. The following example shows you how to reserve nodes
 on Grenoble site that are automatically allocated by the scheduler. If you want specific nodes or topologies you will have to adapt it.
@@ -95,12 +92,14 @@ This setup is launched by default with following parameters:
 - packet size: 50 bytes
 - delay: 1 ms
 
-Of course you can modify this configuration with iotlab-radio command and choose another board when you compile the firmware.
+Of course you can modify this configuration with iotlab-radio command and choose another board when you compile the firmware. 
+
+TODO: It takes 6 seconds per iteration. You can estimate your experiment run time with formula : experiment run time = nb_nodes * nb_channels * nb_txpower * 6s
 
 Radio log data
 --------------
 
-At the end of each setup we save log files as follows:
+At the end of each characterization we save log files as follows:
 
 ::
 
@@ -126,15 +125,24 @@ For example when one node send packets we use this log format:
 
     {"nb_error": 0, "node_id": "126", "power": -17, "channel": 11,  "nb_pkt": 100,
      "send": [{"pkt_num": 0, "pkt_res": 1}, {"pkt_num": 1, "pkt_res": 1}, ...]}
-
-- **nb_error**: number of send packets failure
-- **node_id**: sender node id
-- **power**: transmission power used to send packets
-- **channel**: channel used to send packets
-- **nb_pkt**: number of packets sent
-- **send**:
-    - **pkt_num**: packet number
-    - **pkt_res**: sending result (1=Success|-1=Failure)
+     
+    +-------------+------------------------------------+
+    | nb_error    | Number of delivery failures        |
+    +-------------+------------------------------------+
+    | node_id     | Sender node id                     |
+    +-------------+------------------------------------+
+    | power       | Radio transmission power           |    
+    +-------------+------------------------------------+
+    | channel     | Radio channel                      |   
+    +-------------+------------------------------------+
+    | nb_pkt      | Number of packets sent             | 
+    +-------------+------------------------------------+
+    | send        | Sent packets list                  |
+    |             +-------------+----------------------+
+    |             | pkt_num     | Packet number        |
+    |             +-------------+----------------------+
+    |             | pkt_res     | 1=Success/-1=Failure |
+    +-------------+-------------+----------------------+
 
 For one node which received the packets we use this log format:
 
@@ -143,32 +151,33 @@ For one node which received the packets we use this log format:
     {"nb_magic_error": 0, "nb_crc_error": 0, "nb_error": 0, "nb_pkt": 67, "node_id": "112", "power": -17, "channel": 11,
     "recv": [{"lqi": 255, "pkt_num": 0, "rssi": -91}, { "lqi": 244, "pkt_num": 1, "rssi": -91}, ...]}
 
-- **nb_magic_error**: number of magic number detection errors (eg. packet dropped)
-- **nb_crc_error**: number of CRC errors (eg. packet data corruption)
-- **nb_error**: number of errors
-    - packet payload size < 16 bytes (eg. packet dropped)
-    - packet payload size != packet size (*)
-    - detection of changes in the values of sender node id, channel, power, packet size.
-- **node_id**: sender node id (*)
-- **power**: transmission power used to send packets (*)
-- **channel**: channel used to send packets (*)
-- **nb_pkt**: number of packets received
-- **send**:
-    - **pkt_num**: packet number (*) or error number (**)
-    - **rssi**: Received Signal Strength Indication (RSSI)
-    - **lqi**: Link quality indicator (LQI)
+    +------------------+-------------------------------+
+    | nb_magic_error   | Magic number detection errors |
+    +------------------+-------------------------------+
+    | nb_crc_error     | Corruption data errors        |
+    +------------------+-------------------------------+
+    | nb_error         | Packet Data errors            |    
+    +------------------+-------------------------------+
+    | node_id          | Sender node id (*)            |
+    +------------------+-------------------------------+
+    | power            | Radio transmission power (*)  |    
+    +------------------+-------------------------------+
+    | channel          | Radio channel (*)             |   
+    +------------------+-------------------------------+
+    | nb_pkt           | Number of packets received    | 
+    +------------------+-------------------------------+
+    | recv             | Received packets list         |
+    |                  +-------------+-----------------+
+    |                  | pkt_num (**)| Packet number   |
+    |                  +-------------+-----------------+
+    |                  | rssi        | RSSI            |
+    |                  +-------------+-----------------+
+    |                  | lqi         | LQI             |
+    +------------------+-------------+-----------------+
 
 (*) extract from packet data received
 
-(**) Code error:
-
-- CRC error = 65345
-- packet payload size != packet size = 65346
-- sender node id change = 65347
-- packet size change = 65348
-- channel change = 65349
-- power change = 65350
-
+(**) In case of errors pkt_num = Error code (CRC error = 65345 / packet payload size != packet size = 65346 / sender node id change = 65347 / packet size change = 65348 /channel change = 65349 /power change = 65350)
 
 Parse radio log data
 ---------------------
