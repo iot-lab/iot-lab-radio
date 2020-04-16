@@ -66,17 +66,21 @@ def opts_parser():
     return parser
 
 
-def wait_for_cmd(cmd, timeout, step=1, check_nodes=None):
+def wait_for_cmd(cmd, timeout, step=1, nodes=None):
     """ Wait for a command on serial aggregator """
     start_time = time.time()
     while not time.time() > start_time + timeout:
         time.sleep(step)
-        if check_nodes and len(WAIT_CMD[cmd]) == check_nodes:
+        if nodes and len(WAIT_CMD[cmd]) == len(nodes):
             WAIT_CMD[cmd] = []
             return
-    if check_nodes:
+    if nodes:
+        # missing nodes in WAIT_CMD
+        timeout_nodes = set(nodes).difference(WAIT_CMD[cmd])
+        if timeout_nodes:
+            print('Timeout {} is reached: {}'.format(cmd,
+                                                     timeout_nodes))
         WAIT_CMD[cmd] = []
-        print('Timeout {} is reached.'.format(cmd))
 
 
 def handle_log(identifier, line):
@@ -112,10 +116,10 @@ def run_cmd_manager(opts, aggregator, nodes):
     """ Run command manager """
     for channel in opts.channel:
         aggregator.broadcast('channel {}\n'.format(channel))
-        wait_for_cmd('channel', opts.timeout, check_nodes=len(nodes))
+        wait_for_cmd('channel', opts.timeout, nodes=nodes)
         for txpower in opts.txpower:
             aggregator.broadcast('power {}\n'.format(txpower))
-            wait_for_cmd('power', opts.timeout, check_nodes=len(nodes))
+            wait_for_cmd('power', opts.timeout, nodes=nodes)
             for node in nodes:
                 node_id = node.rsplit('-', 1)[1]
                 cmd = "send {} {} {} {}\n".format(node_id,
@@ -128,9 +132,9 @@ def run_cmd_manager(opts, aggregator, nodes):
                 timeout = opts.delay*0.001*opts.nb_packet + opts.timeout
                 wait_for_cmd('send', timeout)
                 aggregator.broadcast('show\n')
-                wait_for_cmd('show', opts.timeout, check_nodes=len(nodes))
+                wait_for_cmd('show', opts.timeout, nodes=nodes)
                 aggregator.broadcast('clear\n')
-                wait_for_cmd('clear', opts.timeout, check_nodes=len(nodes))
+                wait_for_cmd('clear', opts.timeout, nodes=nodes)
 
 
 def run_radio_logger(exp_id, opts, nodes):
@@ -162,7 +166,7 @@ def main():
         exit(1)
     if opts.experiment_id:
         exp_id = opts.experiment_id
-    else: 
+    else:
         exp_id = iotlabcli.get_current_experiment(api)
     print("Running radio logger ...")
     run_radio_logger(exp_id, opts, nodes)
