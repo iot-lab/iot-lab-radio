@@ -163,7 +163,7 @@ For one node which received packets (for given channel and power values) we use 
 +------------------+--------------------------------+
 | nb_crc_error     | Corruption data errors         |
 +------------------+--------------------------------+
-| nb_error         | Packet Data errors             |    
+| nb_error         | Packet data errors             |    
 +------------------+--------------------------------+
 | node_id          | Sender node id (*)             |
 +------------------+--------------------------------+
@@ -186,12 +186,12 @@ For one node which received packets (for given channel and power values) we use 
 
 (**) In case of errors pkt_num = error code
 
-* CRC error = 65345
-* packet payload size != packet size = 65346
-* sender node id change = 65347
-* packet size change = 65348
-* channel change = 65349
-* power change = 65350
+* CRC error: 65345
+* packet payload size != packet size: 65346
+* sender node id change: 65347
+* packet size change: 65348
+* channel change: 65349
+* power change: 65350
 
 Parse radio log data
 ---------------------
