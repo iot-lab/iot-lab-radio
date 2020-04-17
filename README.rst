@@ -92,9 +92,9 @@ This setup is launched by default with following parameters:
 - packet size: 50 bytes
 - delay: 1 ms
 
-Of course you can modify this configuration with iotlab-radio command and choose another board when you compile the firmware. Another point is the time needed to carry out a characterization in order to choose an experiment duration. By default we use a timeout of 5 seconds (iotlab-radio command option) to wait for the good firmware execution of the commands (set channel, set power, send packets, show logs, clear logs). Only send packets command timeout is blocking (assumption on the time it takes for other nodes to receive the packets). For other commands the nodes send an acknowledgement and we detect if all nodes have executed the command (maybe less than timeout).
+Of course you can modify this configuration with iotlab-radio command and choose another board when you compile the firmware. Another point is the time needed to carry out a characterization in order to choose an experiment duration. By default we use a timeout of 5 seconds (iotlab-radio command option) to wait for the good firmware execution of the commands (set channel, set power, send packets, show logs, clear logs). Only send packets command timeout is blocking (assumption on the time it takes for other nodes to receive the packets). For other commands the nodes send an acknowledgement and we're waiting for them to execute the command. (maybe less than timeout).
 
-So you should estimate the duration with this formula:
+So you should estimate the maximum duration with this formula:
 
 ::
   
