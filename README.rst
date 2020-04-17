@@ -23,8 +23,8 @@ We can summarize as follows:
         for every power:
             for every node:
                 send_packets(nb_packets, packet_size, delay)
-                collect_all_receiver_infos
-                clear_all_receiver_infos
+                collect_all_receiver_logs
+                clear_all_receiver_logs
 
 
 To perform the different step on the nodes (send packets, collect, clear) we use the serial port on which we send commands. Thanks to the
@@ -92,9 +92,14 @@ This setup is launched by default with following parameters:
 - packet size: 50 bytes
 - delay: 1 ms
 
-Of course you can modify this configuration with iotlab-radio command and choose another board when you compile the firmware. 
+Of course you can modify this configuration with iotlab-radio command and choose another board when you compile the firmware. Another point is the time needed to carry out a characterization in order to choose an experiment duration. By default we use a timeout of 5 seconds (iotlab-radio command option) to wait for the good firmware execution of the commands (set channel, set power, send packets, show logs, clear logs). Only send packets command timeout is blocking (assumption on the time it takes for other nodes to receive the packets). For other commands the nodes send an acknowledgement and we detect if all nodes have executed the command (maybe less than timeout).
 
-TODO: It takes 6 seconds per iteration. You can estimate your experiment run time with formula : experiment run time = nb_nodes * nb_channels * nb_txpower * 6s
+So you should estimate the duration with this formula:
+
+::
+  
+    duration (seconds) = timeout*nb_channel(1 + nb_power + 3*nb_power*nb_nodes) 
+
 
 Radio log data
 --------------
@@ -105,7 +110,7 @@ At the end of each characterization we save log files as follows:
 
     logs/<exp_id>/%Y%m%d-%H%M%S/<channel>/<txpower>/<board>-<id>.json
 
-Thus if you launch a setup with m3-1 and m3-2 on the Grenoble site for channel=[11, 12] and txpower=[-4, -3] you will obtain:
+Thus if you launch a setup with m3-1 and m3-2 on the Grenoble site for channel=[11, 12] and txpower=[-4, -3] you will obtain this tree structure on your filesystem:
 
 ::
 
@@ -119,65 +124,74 @@ Thus if you launch a setup with m3-1 and m3-2 on the Grenoble site for channel=[
 
 In each JSON file you can find a list of all packets sended/received by a node during the radio characterization.
 
-For example when one node send packets we use this log format:
+For example when one node send packets (for given channel and power values) we use this log format:
 
 ::
 
     {"nb_error": 0, "node_id": "126", "power": -17, "channel": 11,  "nb_pkt": 100,
      "send": [{"pkt_num": 0, "pkt_res": 1}, {"pkt_num": 1, "pkt_res": 1}, ...]}
-     
-    +-------------+------------------------------------+
-    | nb_error    | Number of delivery failures        |
-    +-------------+------------------------------------+
-    | node_id     | Sender node id                     |
-    +-------------+------------------------------------+
-    | power       | Radio transmission power           |    
-    +-------------+------------------------------------+
-    | channel     | Radio channel                      |   
-    +-------------+------------------------------------+
-    | nb_pkt      | Number of packets sent             | 
-    +-------------+------------------------------------+
-    | send        | Sent packets list                  |
-    |             +-------------+----------------------+
-    |             | pkt_num     | Packet number        |
-    |             +-------------+----------------------+
-    |             | pkt_res     | 1=Success/-1=Failure |
-    +-------------+-------------+----------------------+
+    
++-------------+------------------------------------+
+| nb_error    | Number of delivery failures        |
++-------------+------------------------------------+
+| node_id     | Sender node id                     |
++-------------+------------------------------------+
+| power       | Radio transmission power           |    
++-------------+------------------------------------+
+| channel     | Radio channel                      |   
++-------------+------------------------------------+
+| nb_pkt      | Number of packets sent             | 
++-------------+------------------------------------+
+| send        | Sent packets list                  |
+|             +-------------+----------------------+
+|             | pkt_num     | Packet number        |
+|             +-------------+----------------------+
+|             | pkt_res (*) | 1=Success/-1=Failure |
++-------------+-------------+----------------------+
+    
+(*) Result of gnrc_netapi_send function of RIOT OS.  
 
-For one node which received the packets we use this log format:
+For one node which received packets (for given channel and power values) we use this log format:
 
 ::
 
     {"nb_magic_error": 0, "nb_crc_error": 0, "nb_error": 0, "nb_pkt": 67, "node_id": "112", "power": -17, "channel": 11,
     "recv": [{"lqi": 255, "pkt_num": 0, "rssi": -91}, { "lqi": 244, "pkt_num": 1, "rssi": -91}, ...]}
 
-    +------------------+-------------------------------+
-    | nb_magic_error   | Magic number detection errors |
-    +------------------+-------------------------------+
-    | nb_crc_error     | Corruption data errors        |
-    +------------------+-------------------------------+
-    | nb_error         | Packet Data errors            |    
-    +------------------+-------------------------------+
-    | node_id          | Sender node id (*)            |
-    +------------------+-------------------------------+
-    | power            | Radio transmission power (*)  |    
-    +------------------+-------------------------------+
-    | channel          | Radio channel (*)             |   
-    +------------------+-------------------------------+
-    | nb_pkt           | Number of packets received    | 
-    +------------------+-------------------------------+
-    | recv             | Received packets list         |
-    |                  +-------------+-----------------+
-    |                  | pkt_num (**)| Packet number   |
-    |                  +-------------+-----------------+
-    |                  | rssi        | RSSI            |
-    |                  +-------------+-----------------+
-    |                  | lqi         | LQI             |
-    +------------------+-------------+-----------------+
++------------------+--------------------------------+
+| nb_magic_error   | Magic Number detection errors  |
++------------------+--------------------------------+
+| nb_crc_error     | Corruption data errors         |
++------------------+--------------------------------+
+| nb_error         | Packet Data errors             |    
++------------------+--------------------------------+
+| node_id          | Sender node id (*)             |
++------------------+--------------------------------+
+| power            | Radio transmission power (*)   |    
++------------------+--------------------------------+
+| channel          | Radio channel (*)              |   
++------------------+--------------------------------+
+| nb_pkt           | Number of packets received     | 
++------------------+--------------------------------+
+| recv             | Received packets list          |
+|                  +-------------+------------------+
+|                  | pkt_num (**)| Packet number (*)|
+|                  +-------------+------------------+
+|                  | rssi        | RSSI             |
+|                  +-------------+------------------+
+|                  | lqi         | LQI              |
++------------------+-------------+------------------+
 
-(*) extract from packet data received
+(*) These values are extracted from packet data received
 
-(**) In case of errors pkt_num = Error code (CRC error = 65345 / packet payload size != packet size = 65346 / sender node id change = 65347 / packet size change = 65348 /channel change = 65349 /power change = 65350)
+(**) In case of errors pkt_num = error code
+
+* CRC error = 65345
+* packet payload size != packet size = 65346
+* sender node id change = 65347
+* packet size change = 65348
+* channel change = 65349
+* power change = 65350
 
 Parse radio log data
 ---------------------
