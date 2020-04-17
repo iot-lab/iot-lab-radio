@@ -54,7 +54,6 @@ def store_radio_logs(exp_id, logs):
     log_path = os.path.join("logs", str(exp_id),
                             time.strftime("%Y%m%d-%H%M%S"))
     res = get_results(log_path, logs)
-    print()
     for path in res:
         print(path)
         # python2 support due to aggregation-tools
