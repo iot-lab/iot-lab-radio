@@ -112,8 +112,8 @@ At the end of each characterization we save log files as follows:
 
 ::
 
-    logs/<exp_id>/%Y%m%d-%H%M%S/config.json
-    logs/<exp_id>/%Y%m%d-%H%M%S/<channel>/<txpower>/<board>-<id>.json
+    logs/<exp_id>/<%Y%m%d-%H%M%S>/config.json
+    logs/<exp_id>/<%Y%m%d-%H%M%S>/<channel>/<txpower>/<board>-<id>.json
 
 Thus if you launch a setup with m3-1 and m3-2 on the Grenoble site for channel=[11, 12] and txpower=[-4, -3] you will obtain this tree structure on your filesystem:
 
@@ -197,7 +197,12 @@ For one node which received packets (for given channel and power values) we use 
 Parsing radio logs data
 -----------------------
 
-The parsing uses `Pandas Python library <https://pandas.pydata.org/>`_ to generate three csv files in the logs directory. Feel free to use this library to analyze and plotting the results.
+::
+
+      <login>@grenoble:~$ ./iotlab-radio-parse -p logs/<exp_id>/<%Y%m%d-%H%M%S>
+      
+
+The parsing uses `Pandas Python library <https://pandas.pydata.org/>`_ to generate three csv files in the logs directory. Feel free to use this library to analyze and plotting the parsing results.
 
 
 - **recv-logs.csv**: all packets received (*) by nodes with the following format
