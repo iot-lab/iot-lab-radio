@@ -111,6 +111,7 @@ Radio logs data
 At the end of each characterization we save log files as follows:
 
 ::
+
     logs/<exp_id>/%Y%m%d-%H%M%S/config.json
     logs/<exp_id>/%Y%m%d-%H%M%S/<channel>/<txpower>/<board>-<id>.json
 
@@ -196,39 +197,38 @@ For one node which received packets (for given channel and power values) we use 
 Parsing radio logs data
 -----------------------
 
-The parsing uses `Pandas Python library <https://pandas.pydata.org/>`_ to generate three csv files:
+The parsing uses `Pandas Python library <https://pandas.pydata.org/>`_ to generate three csv files in the logs directory
 
 
 - **recv-logs.csv**: all packets received (*) by nodes with the following format
 
     ::
 
-        channel  power  rx_node  tx_node  pkt_num  rssi  lqi
-             11     -3       11       14        0   -75  255
-             11     -3       11       14        1   -75  255
-             11     -3       11       14        2     0    0
+        channel,power,rx_node,tx_node,pkt_num,rssi,lqi
+        11,-3,11,14,0,-75,255
+        11,-3,11,14,1,-75,255
+        11,-3,11,14,2,0,0
         ...
 
-    > (*) this is the theoretical number of packets received: (nb_channel*nb_power*nb_nodes*(nb_nodes-1)*nb_packet)
-    > all packets that have not been received during radio characterization have an LQI and RSSI value of 0
+    (*) This is a total number (eg. theoretical) of packets received that you can calculate with this formula:  (nb_channel*nb_power*nb_nodes*(nb_nodes-1)*nb_packet). You can find the packets that have not been received during radio characterization with LQI and RSSI values equal to 0.
 
 - **send-logs.csv**: all packets sent by nodes with the following format
 
     ::
 
-        channel  power  tx_node  pkt_num  pkt_send
-             11     -3       11        0         1
-             11     -3       11        1         1
+        channel,power,tx_node,pkt_num,pkt_send
+        11,-3,11,0,1
+        11,-3,11,1,1
         ...
 
-    > pkt_send = 0 in case of packet transmission error
+    pkt_send = 0 in case of packet transmission error
 
 - **error-logs.csv**: all packet reception errors
 
     ::
 
-        channel  power  rx_node  tx_node  generic  magic_number  crc  control
-             11     -3       11       14        0             0    0        0
-             11     -3       11       15        0             0    0        0
+        channel,power,rx_node,tx_node,generic,magic_number,crc,control
+        11,-3,11,14,0,0,0,0
+        11,-3,11,15,0,0,0,0
         ...
 
