@@ -197,7 +197,7 @@ For one node which received packets (for given channel and power values) we use 
 Parsing radio logs data
 -----------------------
 
-The parsing uses `Pandas Python library <https://pandas.pydata.org/>`_ to generate three csv files in the logs directory
+The parsing uses `Pandas Python library <https://pandas.pydata.org/>`_ to generate three csv files in the logs directory. Feel free to use this library to analyze and plotting the results.
 
 
 - **recv-logs.csv**: all packets received (*) by nodes with the following format
