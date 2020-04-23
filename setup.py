@@ -26,6 +26,7 @@ from setuptools import setup, find_packages
 PACKAGE = 'iotlabradio'
 # GPL compatible http://www.gnu.org/licenses/license-list.html#CeCILL
 LICENSE = 'CeCILL v2.1'
+SCRIPTS = ['iotlab-radio', 'iotlab-radio-parse']
 
 def readme(fname):
     """Utility function to read the README. Used for long description."""
@@ -57,6 +58,7 @@ setup(
     license=LICENSE,
     download_url='http://github.com/iot-lab/iot-lab-radio/',
     packages=find_packages(),
+    scripts=SCRIPTS,
     include_package_data=True,
     classifiers=['Development Status :: 4 - Beta',
                  'Programming Language :: Python',
@@ -68,5 +70,5 @@ setup(
                  'Intended Audience :: End Users/Desktop',
                  'Environment :: Console',
                  'Topic :: Utilities', ],
-    install_requires=['iotlabcli'],
+    install_requires=['iotlabcli', 'numpy', 'pandas'],
 )

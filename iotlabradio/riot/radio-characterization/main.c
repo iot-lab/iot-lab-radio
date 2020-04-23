@@ -24,9 +24,8 @@
 #define CHANNEL_NONE 0x00ffu
 // 2 bytes for signed values
 #define POWER_NONE 0xff01
-#define PKT_NUM_OFFSET_ERROR 0xff00u
 #define PKT_SEND_OK 1
-#define PKT_SEND_ERROR -1
+#define PKT_SEND_ERROR 0
 #ifndef PKT_MAX_RECV
 #define PKT_MAX_RECV 1024
 #endif
@@ -78,9 +77,10 @@ typedef struct {
     uint16_t channel;
     uint16_t pkt_size;
     int nb_pkt;
-    int nb_error;
+    int nb_generic_error;
     int nb_magic_error;
     int nb_crc_error;
+    int nb_control_error;
     recv_info_t recv[PKT_MAX_RECV];
 } recv_logger_t;
 
@@ -92,9 +92,10 @@ static void recv_logger_init(recv_logger_t* self)
     self->channel = CHANNEL_NONE;
     self->power = POWER_NONE;
     self->nb_pkt = 0;
-    self->nb_error = 0;
+    self->nb_generic_error = 0;
     self->nb_magic_error = 0;
     self->nb_crc_error = 0;
+    self->nb_control_error = 0;
 }
 
 static uint16_t get_crc(uint8_t* data, unsigned int size)
@@ -104,11 +105,11 @@ static uint16_t get_crc(uint8_t* data, unsigned int size)
 
 static void recv_logger_show(recv_logger_t* self)
 {
-    printf("{\"nb_pkt\":%i,\"nb_error\":%i,\"nb_magic_error\":%i,"
-	       "\"nb_crc_error\":%i,\"power\":%i,"
+    printf("{\"nb_pkt\":%i,\"nb_generic_error\":%i,\"nb_magic_error\":%i,"
+	       "\"nb_crc_error\":%i,\"nb_control_error\":%i,\"power\":%i,"
 	       "\"channel\":%i,\"node_id\":\"%s\",\"recv\":[",
-	       self->nb_pkt, self->nb_error, self->nb_magic_error,
-	       self->nb_crc_error, self->power,
+	       self->nb_pkt, self->nb_generic_error, self->nb_magic_error,
+	       self->nb_crc_error, self->nb_control_error, self->power,
            self->channel, self->node_id);
     int i;
     for (i=0; i<self->nb_pkt; i++) {
@@ -131,7 +132,7 @@ static void send_logger_show(int nb_pkt, int nb_error, char* node_id,
     for (i=0; i<nb_pkt; i++) {
         if (i > 0)
             printf(",");
-        printf("{\"pkt_num\":%i,\"pkt_res\":%i}", i, send_logger[i]);
+        printf("{\"pkt_num\":%i,\"pkt_send\":%i}", i, send_logger[i]);
     }
     printf("]}\n");
 }
@@ -144,7 +145,7 @@ int send_one_packet(int num)
     uint8_t flags = 0x00;
     
     // This is used to store 8 bit packed values
-    uint8_t raw_data[128];
+    uint8_t raw_data[PKT_MAX_SEND_SIZE];
     uint8_t* data = raw_data;
     // Fills out a packet with packet size and num value
     memset(data, num, conf.pkt_size);
@@ -235,18 +236,6 @@ static void send_packets(void)
                      conf.power, conf.channel);
 }
 
-
-static void recv_logger_add_error(recv_logger_t* self,
-				  uint32_t error_type)
-{
-    // PKT_NUM_OFFSET_ERROR+'A' = 65280+65 = 65345 
-    recv_info_t* recv_info = &self->recv[self->nb_pkt];
-    recv_info->pkt_num = PKT_NUM_OFFSET_ERROR+error_type;
-    recv_info->rssi = 0;
-    recv_info->lqi = 0;
-    self->nb_pkt++;
-}
-
 char node_id[32];
 
 static void recv_logger_add(recv_logger_t* self,
@@ -255,7 +244,7 @@ static void recv_logger_add(recv_logger_t* self,
     DEBUG("Payload size: %i\n", size);
     // Unknown packet type
     if (size <= 16) {
-        self->nb_error++;
+        self->nb_generic_error++;
         return;
     }
     uint8_t* raw_data = data;
@@ -265,7 +254,6 @@ static void recv_logger_add(recv_logger_t* self,
         self->nb_magic_error ++;
         return;
     }
-
     data += sizeof(magic);
     uint16_t crc;
     memcpy(&crc, data, sizeof(crc));
@@ -273,7 +261,6 @@ static void recv_logger_add(recv_logger_t* self,
     uint16_t crc_data = get_crc(raw_data, size);
     // Bad CRC
     if (crc_data != crc) {
-        recv_logger_add_error(self, 'A');
         self->nb_crc_error ++;
         return;
     }
@@ -304,16 +291,14 @@ static void recv_logger_add(recv_logger_t* self,
     uint8_t pkt_size = *data;
     DEBUG("packet size: %i\n", pkt_size);
     if (pkt_size != size) {
-        recv_logger_add_error(self, 'B');
-        self->nb_error ++;
+        self->nb_control_error ++;
         return;
     }
 
     if (strcmp(self->node_id,NODE_ID_NONE) != 0) {
         // sender id is updated
         if (strcmp(self->node_id, node_id) != 0) {
-            recv_logger_add_error(self, 'C');
-            self->nb_error ++;
+            self->nb_control_error ++;
             return;
         }
     } else {
@@ -322,24 +307,12 @@ static void recv_logger_add(recv_logger_t* self,
         self->power = power;
         self->channel = channel;
     }
-    // packet size value is updated
-    if (self->pkt_size != pkt_size) {
-        recv_logger_add_error(self, 'D');
-        self->nb_error ++;
-        return;
-    }
-    
-    // channel value is updated
-    if (self->channel != channel) {
-        recv_logger_add_error(self, 'E');
-        self->nb_error ++;
-        return;
-    }
 
-    // power value is updated
-    if (self->power != power) {
-        recv_logger_add_error(self, 'F');
-        self->nb_error ++;
+    // packet size, channel, power value is updated
+    if ((self->pkt_size != pkt_size) ||
+        (self->channel != channel) ||
+        (self->power != power)) {
+        self->nb_control_error ++;
         return;
     }
 

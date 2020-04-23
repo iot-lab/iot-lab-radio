@@ -30,11 +30,11 @@ from iotlabaggregator.serial import SerialAggregator
 import iotlabcli
 from iotlabcli.auth import get_user_credentials
 from iotlabcli.rest import Api
-from iotlabradio.helpers import log_dict, store_radio_logs
+from iotlabradio.helpers import log_dict, save_radio_logs
 
 
 CHANNEL_LIST = list(range(11, 27))
-POWER_LIST = [-17, -12, -9, -7, -5, -4, -3, -2, -1, 0, 0.7, 1.3, 1.8, 2.3, 2.8, 3]
+POWER_LIST = [-17, -12, -9, -7, -5, -4, -3, -2, -1, 0, 1, 2, 3]
 LOGS = log_dict(3, int)
 WAIT_CMD = {'show':[], 'clear':[], 'channel':[], 'power':[]}
 
@@ -144,7 +144,7 @@ def run_radio_logger(exp_id, opts, nodes):
             try:
                 run_cmd_manager(opts, aggregator, nodes)
                 print("Saving radio logs ...")
-                store_radio_logs(exp_id, LOGS)
+                save_radio_logs(exp_id, opts, nodes, LOGS)
                 break
             except KeyboardInterrupt:
                 print("Interrupted by user ...")

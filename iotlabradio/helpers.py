@@ -25,6 +25,8 @@ import os
 import time
 import json
 from collections import defaultdict
+import numpy as np
+import pandas as pd
 
 
 def log_dict(nb_dict, type_dict):
@@ -32,6 +34,30 @@ def log_dict(nb_dict, type_dict):
     if nb_dict == 1:
         return defaultdict(type_dict)
     return defaultdict(lambda: log_dict(nb_dict-1, type_dict))
+
+
+def parser_frame(iterables, names, columns, rows):
+    """ Create a MultiIndex data frame (filled with 0) """
+    multi = pd.MultiIndex.from_product(iterables=iterables,
+                                       names=names)
+    return pd.DataFrame(np.zeros([rows, len(columns)], dtype=int),
+                        index=multi,
+                        columns=columns)
+
+
+def get_unused_rows(channels, powers, nodes, packets=None):
+    """ Get all rows with tx_node=rx_node """
+    rows = []
+    for channel in channels:
+        for power in powers:
+            for node in nodes:
+                row = (channel, power, node, node)
+                if packets:
+                    for pkt in packets:
+                        rows.append(row + (pkt,))
+                else:
+                    rows.append(row)
+    return rows
 
 
 def get_results(path, logs, res=None):
@@ -49,8 +75,40 @@ def get_results(path, logs, res=None):
     return res
 
 
-def store_radio_logs(exp_id, logs):
-    """ Store radio logger values """
+def save_json(path, data):
+    """ Save JSON file """
+    with open(path, 'w') as json_file:
+        json.dump(data, json_file)
+
+
+def read_json(path):
+    """ Read JSON file """
+    with open(path) as json_file:
+        data = json.load(json_file)
+    return data
+
+
+def read_config(log_path):
+    """ Read config file """
+    return read_json(os.path.join(log_path,
+                                  'config.json'))
+
+
+def save_config(log_path, opts, nodes):
+    """ Save radio config file """
+    config = {'nb_packet': opts.nb_packet,
+              'delay': opts.delay,
+              'packet_size': opts.packet_size,
+              'timeout': opts.timeout,
+              'nodes': nodes,
+              'channel': opts.channel,
+              'power': opts.txpower}
+    save_json(os.path.join(log_path, 'config.json'),
+              config)
+
+
+def save_radio_logs(exp_id, opts, nodes, logs):
+    """ Save radio logs """
     log_path = os.path.join("logs", str(exp_id),
                             time.strftime("%Y%m%d-%H%M%S"))
     res = get_results(log_path, logs)
@@ -59,5 +117,12 @@ def store_radio_logs(exp_id, logs):
         # python2 support due to aggregation-tools
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
-        with open(path, 'w') as json_file:
-            json.dump(res[path], json_file)
+        save_json(path, res[path])
+    save_config(log_path, opts, nodes)
+
+
+def save_parsing_logs(log_path, logs):
+    """ Save parsing logs """
+    for log in logs:
+        logs[log].to_csv(os.path.join(log_path,
+                                      '{}-logs.csv'.format(log)))

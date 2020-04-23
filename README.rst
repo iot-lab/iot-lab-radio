@@ -29,7 +29,7 @@ We can summarize as follows:
 
 To perform the different step on the nodes (send packets, collect, clear) we use the serial port on which we send commands. Thanks to the
 serial aggregator tool which allows us to aggregate all serial ports of nodes very easily. We also manage error detection when receiving 
-packets (eg. CRC & Magic Number, ...)
+packets (eg. CRC16 & Magic Number, ...)
 
 
 Radio characterization firmware
@@ -54,7 +54,7 @@ When a node sends packets the firmware builds each packet with a fixed header of
     +--------+--------+--------+--------+
     \                                   \
     /        Each bytes is filled       /  0 or more bytes 
-    \         with packet number        \
+    \    with packet number (padding)   \
     +-----------------------------------+
 
     (*) = 0xADCE
@@ -87,7 +87,7 @@ Another important point is that we use the serial aggregator tool to collect the
 This setup is launched by default with following parameters:
 
 - all channels: [11..26]
-- all txpower: [-17, -12, -9, -7, -5, -4, -3, -2, -1, 0, 0.7, 1.3, 1.8, 2.3, 2.8, 3]
+- all txpower: [-17, -12, -9, -7, -5, -4, -3, -2, -1, 0, 1, 2, 3]
 - number of packets: 100
 - packet size: 50 bytes
 - delay: 1 ms
@@ -105,13 +105,13 @@ So you should estimate the maximum duration with this formula:
                                      nb_power*nb_nodes*(3*timeout + delay*0,001*nb_packets)) 
 
 
-Radio log data
---------------
+Radio logs data
+---------------
 
 At the end of each characterization we save log files as follows:
 
 ::
-
+    logs/<exp_id>/%Y%m%d-%H%M%S/config.json
     logs/<exp_id>/%Y%m%d-%H%M%S/<channel>/<txpower>/<board>-<id>.json
 
 Thus if you launch a setup with m3-1 and m3-2 on the Grenoble site for channel=[11, 12] and txpower=[-4, -3] you will obtain this tree structure on your filesystem:
@@ -133,7 +133,7 @@ For example when one node send packets (for given channel and power values) we u
 ::
 
     {"nb_error": 0, "node_id": "126", "power": -17, "channel": 11,  "nb_pkt": 100,
-     "send": [{"pkt_num": 0, "pkt_res": 1}, {"pkt_num": 1, "pkt_res": 1}, ...]}
+     "send": [{"pkt_num": 0, "pkt_send": 1}, {"pkt_num": 1, "pkt_send": 1}, ...]}
     
 +-------------+------------------------------------+
 | nb_error    | Number of delivery failures        |
@@ -150,7 +150,7 @@ For example when one node send packets (for given channel and power values) we u
 |             +-------------+----------------------+
 |             | pkt_num     | Packet number        |
 |             +-------------+----------------------+
-|             | pkt_res (*) | 1=Success/-1=Failure |
+|             | pkt_send (*)| 1=Success/0=Failure  |
 +-------------+-------------+----------------------+
     
 (*) Result of gnrc_netapi_send function of RIOT OS.  
@@ -159,15 +159,18 @@ For one node which received packets (for given channel and power values) we use 
 
 ::
 
-    {"nb_magic_error": 0, "nb_crc_error": 0, "nb_error": 0, "nb_pkt": 67, "node_id": "112", "power": -17, "channel": 11,
+    {"nb_generic_error": 0, "nb_magic_error": 0, "nb_crc_error": 0, "nb_control_error": 0, "nb_pkt": 67, "node_id": "112", "power": -17, "channel": 11,
     "recv": [{"lqi": 255, "pkt_num": 0, "rssi": -91}, { "lqi": 244, "pkt_num": 1, "rssi": -91}, ...]}
 
+
 +------------------+--------------------------------+
-| nb_magic_error   | Magic Number detection errors  |
+| nb_generic_error | Unknown packet                 |
 +------------------+--------------------------------+
-| nb_crc_error     | Corruption data errors         |
+| nb_magic_error   | Magic number packet detection  |
 +------------------+--------------------------------+
-| nb_error         | Packet data errors             |    
+| nb_crc_error     | Corruption packet data         |
++------------------+--------------------------------+
+| nb_control_error | Control packet data (**)       |
 +------------------+--------------------------------+
 | node_id          | Sender node id (*)             |
 +------------------+--------------------------------+
@@ -179,7 +182,7 @@ For one node which received packets (for given channel and power values) we use 
 +------------------+--------------------------------+
 | recv             | Received packets list          |
 |                  +-------------+------------------+
-|                  | pkt_num (**)| Packet number (*)|
+|                  | pkt_num     | Packet number (*)|
 |                  +-------------+------------------+
 |                  | rssi        | RSSI             |
 |                  +-------------+------------------+
@@ -188,16 +191,44 @@ For one node which received packets (for given channel and power values) we use 
 
 (*) These values are extracted from packet data received
 
-(**) In case of errors pkt_num = error code
+(**) Ex: Packet data values has been changed (eg. sender node id|packet size|channel|power)
 
-* CRC error: 65345
-* packet payload size != packet size: 65346
-* sender node id change: 65347
-* packet size change: 65348
-* channel change: 65349
-* power change: 65350
+Parsing radio logs data
+-----------------------
 
-Parse radio log data
----------------------
+The parsing uses `Pandas Python library <https://pandas.pydata.org/>`_ to generate three csv files:
 
-TODO
+
+- **recv-logs.csv**: all packets received (*) by nodes with the following format
+
+    ::
+
+        channel  power  rx_node  tx_node  pkt_num  rssi  lqi
+             11     -3       11       14        0   -75  255
+             11     -3       11       14        1   -75  255
+             11     -3       11       14        2     0    0
+        ...
+
+    > (*) this is the theoretical number of packets received: (nb_channel*nb_power*nb_nodes*(nb_nodes-1)*nb_packet)
+    > all packets that have not been received during radio characterization have an LQI and RSSI value of 0
+
+- **send-logs.csv**: all packets sent by nodes with the following format
+
+    ::
+
+        channel  power  tx_node  pkt_num  pkt_send
+             11     -3       11        0         1
+             11     -3       11        1         1
+        ...
+
+    > pkt_send = 0 in case of packet transmission error
+
+- **error-logs.csv**: all packet reception errors
+
+    ::
+
+        channel  power  rx_node  tx_node  generic  magic_number  crc  control
+             11     -3       11       14        0             0    0        0
+             11     -3       11       15        0             0    0        0
+        ...
+
