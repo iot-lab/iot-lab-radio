@@ -382,7 +382,7 @@ int send_pkt_cmd(int argc, char **argv)
 
 char jamming_thread_stack[512+256];
 
-int radio_jamming_cmd(int argc, char **argv)
+int jamming_cmd(int argc, char **argv)
 {
     if (argc != 5) {
         printf("Usage: %s <state:start|stop> <str:node_id> <int:pkt_size> <int:delay_ms>\n", argv[0]);
@@ -492,7 +492,7 @@ int set_power_cmd(int argc, char **argv)
 
 static const shell_command_t shell_commands[] = {
     { "send", "send packets", send_pkt_cmd},
-    { "jam", "radio jamming", radio_jamming_cmd},
+    { "jam", "radio jamming", jamming_cmd},
     { "show", "show recv", show_cmd},
     { "clear", "clear recv", clear_cmd},
     { "channel", "change channel", set_channel_cmd},
