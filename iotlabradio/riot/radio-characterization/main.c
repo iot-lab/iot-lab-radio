@@ -86,6 +86,8 @@ typedef struct {
 
 recv_logger_t recv_logger;
 
+int16_t jamming = 0;
+
 static void recv_logger_init(recv_logger_t* self)
 {
     self->node_id = NODE_ID_NONE;
@@ -236,6 +238,23 @@ static void send_packets(void)
                      conf.power, conf.channel);
 }
 
+void* jamming_thread(void *arg)
+{
+    (void) arg;
+    /* Enter TX mode */
+    conf.radio_mode = MODE_TX;
+    /* Send nb_pkt packets and count errors */
+    int i=0;
+    while(jamming==1){
+      send_one_packet(i%100);
+      i++;
+      xtimer_usleep(1000 * conf.delay);
+    }
+    /* restart RX */
+    conf.radio_mode = MODE_RX;
+    return NULL;
+}
+
 char node_id[32];
 
 static void recv_logger_add(recv_logger_t* self,
@@ -360,6 +379,57 @@ int send_pkt_cmd(int argc, char **argv)
     return 1;
 }
 
+
+char jamming_thread_stack[512+256];
+
+int radio_jamming_cmd(int argc, char **argv)
+{
+    if (argc != 5) {
+        printf("Usage: %s <state:start|stop> <str:node_id> <int:pkt_size> <int:delay_ms>\n", argv[0]);
+        return 1;
+    }
+    char* state = argv[1];
+    if (!(strcmp(state, "start") == 0 || strcmp(state, "stop") == 0 )) {
+       printf("Invalid state arg %s: <start|stop>\n", state);
+       return 1;
+    }
+
+    conf.node_id = argv[2];
+    int ret = sscanf(argv[3], "%"SCNu16, &conf.pkt_size) +
+    sscanf(argv[4], "%"SCNu16, &conf.delay);
+
+    if ((ret == 2) && (strcmp(conf.node_id, NODE_ID_NONE) != 0)) {
+        if (conf.pkt_size < PKT_MIN_SEND_SIZE ||
+            conf.pkt_size > PKT_MAX_SEND_SIZE) {
+             printf("Invalid packet size (%i<size<%i)\n",
+                    PKT_MIN_SEND_SIZE,
+                    PKT_MAX_SEND_SIZE);
+            return 1;
+        }
+        if (conf.delay < 1 || conf.delay > PKT_MAX_SEND_DELAY) {
+            printf("Invalid delay (1<=delay<%i)\n",
+                   PKT_MAX_SEND_DELAY);
+            return 1;
+        }
+        if (strcmp(state, "start") == 0) {
+          if(jamming == 1) {
+            printf("Error, already jamming. Stop before\n");
+            return 1;
+          } else {
+            jamming = 1;
+            thread_create(jamming_thread_stack, sizeof(jamming_thread_stack),
+                          THREAD_PRIORITY_MAIN + 1, THREAD_CREATE_STACKTEST,
+                          jamming_thread, NULL, "jamming_thread");
+            return 0;
+          }
+        } else {
+          jamming = 0;
+          return 0;
+        }
+    }
+    return 1;
+}
+
 int show_cmd(int argc, char **argv)
 {
     if (argc >1) {
@@ -422,6 +492,7 @@ int set_power_cmd(int argc, char **argv)
 
 static const shell_command_t shell_commands[] = {
     { "send", "send packets", send_pkt_cmd},
+    { "jam", "radio jamming", radio_jamming_cmd},
     { "show", "show recv", show_cmd},
     { "clear", "clear recv", clear_cmd},
     { "channel", "change channel", set_channel_cmd},
@@ -503,7 +574,7 @@ int main(void)
     recv_logger_init(&recv_logger);
 
     thread_create(recv_thread_stack, sizeof(recv_thread_stack),
-                  THREAD_PRIORITY_MAIN + 1, THREAD_CREATE_STACKTEST,
+                  THREAD_PRIORITY_MAIN + 2, THREAD_CREATE_STACKTEST,
                   recv_thread, NULL, "recv_thread");
 
     char line_buf[SHELL_DEFAULT_BUFSIZE];
