@@ -139,7 +139,7 @@ static void send_logger_show(int nb_pkt, int nb_error, char* node_id,
     printf("]}\n");
 }
 
-int send_one_packet(int num)
+int send_one_packet(int num, int magic_header)
 {
     uint8_t addr[GNRC_NETIF_L2ADDR_MAXLEN];
     gnrc_pktsnip_t *pkt, *hdr;
@@ -152,7 +152,7 @@ int send_one_packet(int num)
     // Fills out a packet with packet size and num value
     memset(data, num, conf.pkt_size);
     // Add magic number (eg. ADCE)
-    uint16_t magic = MAGIC;
+    uint16_t magic = magic_header;
     memcpy(data, &magic, sizeof(magic));
     data += sizeof(uint16_t);
     // Add zero out the space for CRC
@@ -228,7 +228,7 @@ static void send_packets(void)
     int failure_count = 0;
     int i;
     for (i = 0; i < conf.nb_pkt; i++) {
-        if (send_one_packet(i))
+        if (send_one_packet(i, MAGIC))
             failure_count++;
         xtimer_usleep(1000 * conf.delay);
     }
@@ -246,7 +246,7 @@ void* jamming_thread(void *arg)
     /* Send nb_pkt packets and count errors */
     int i=0;
     while(jamming==1){
-      send_one_packet(i%100);
+      send_one_packet(i%100, 0xFFFFu);
       i++;
       xtimer_usleep(1000 * conf.delay);
     }
